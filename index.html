@@ -14,7 +14,7 @@
   </style>
 </head>
 <body>
-  <h2>Walkathon – Enter Your Steps</h2>
+  <h2>🏃 Walkathon – Enter Your Steps</h2>
 
   <div id="auth">
     <button onclick="signIn()">Sign in with Google</button>
@@ -25,10 +25,7 @@
     <h3 id="greeting"></h3>
     <form id="stepForm" onsubmit="submitSteps(event)">
       <table>
-        <tr>
-          <th>Day</th>
-          <th>Steps</th>
-        </tr>
+        <tr><th>Day</th><th>Steps</th></tr>
         <tr><td>Monday</td>    <td><input type="number" id="mon" /></td></tr>
         <tr><td>Tuesday</td>   <td><input type="number" id="tue" /></td></tr>
         <tr><td>Wednesday</td> <td><input type="number" id="wed" /></td></tr>
@@ -57,14 +54,18 @@
 
     function signIn() {
       const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider).then(result => {
-        currentUser = result.user;
-        document.getElementById("user").textContent = `Signed in as ${currentUser.email}`;
-        document.getElementById("auth").style.display = "none";
-        document.getElementById("form").style.display = "block";
-        document.getElementById("greeting").innerText = `Hello, ${currentUser.displayName}!`;
-        loadExistingData();
-      });
+      auth.signInWithPopup(provider)
+        .then(result => {
+          currentUser = result.user;
+          document.getElementById("user").textContent = `Signed in as ${currentUser.email}`;
+          document.getElementById("auth").style.display = "none";
+          document.getElementById("form").style.display = "block";
+          document.getElementById("greeting").innerText = `Welcome, ${currentUser.displayName}!`;
+          loadExistingData();
+        })
+        .catch(err => {
+          alert("Sign-in error: " + err.message);
+        });
     }
 
     function loadExistingData() {
@@ -72,23 +73,23 @@
       ref.once("value", snapshot => {
         const data = snapshot.val();
         if (data && data.week) {
-          for (let day of ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]) {
+          ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].forEach(day => {
             document.getElementById(day).value = data.week[day] || 0;
-          }
+          });
         }
       });
     }
 
     function submitSteps(e) {
       e.preventDefault();
-      const steps = {};
-      for (let day of ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]) {
-        steps[day] = parseInt(document.getElementById(day).value) || 0;
-      }
-      const ref = db.ref("walkathon/" + currentUser.displayName);
-      ref.set({
+      const weekData = {};
+      ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].forEach(day => {
+        weekData[day] = parseInt(document.getElementById(day).value) || 0;
+      });
+
+      db.ref("walkathon/" + currentUser.displayName).set({
         name: currentUser.displayName,
-        week: steps,
+        week: weekData,
         enabled: true,
         timestamp: new Date().toISOString()
       }).then(() => {
