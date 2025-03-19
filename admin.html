@@ -27,7 +27,14 @@
     <table id="leaderboard">
       <tr>
         <th>Name</th>
-        <th>Steps</th>
+        <th>Mon</th>
+        <th>Tue</th>
+        <th>Wed</th>
+        <th>Thu</th>
+        <th>Fri</th>
+        <th>Sat</th>
+        <th>Sun</th>
+        <th>Total</th>
         <th>Status</th>
         <th>Actions</th>
       </tr>
@@ -51,7 +58,7 @@
       auth.signInWithPopup(provider).then(result => {
         const user = result.user;
         document.getElementById("user").textContent = `Signed in as ${user.email}`;
-        if (user.email === "nitin1518@gmail.com") {
+        if (user.email === "YOUR_ADMIN_EMAIL") {
           document.getElementById("admin").style.display = "block";
           loadLeaderboard();
         } else {
@@ -66,7 +73,14 @@
         table.innerHTML = `
           <tr>
             <th>Name</th>
-            <th>Steps</th>
+            <th>Mon</th>
+            <th>Tue</th>
+            <th>Wed</th>
+            <th>Thu</th>
+            <th>Fri</th>
+            <th>Sat</th>
+            <th>Sun</th>
+            <th>Total</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -75,13 +89,16 @@
         snapshot.forEach(child => {
           const key = child.key;
           const data = child.val();
+          const week = data.week || {};
+          const totalSteps = Object.values(week).reduce((a, b) => a + (b || 0), 0);
           const row = document.createElement("tr");
 
           row.innerHTML = `
             <td>${data.name || key}</td>
-            <td>
-              <input type="number" id="steps-${key}" value="${data.steps || 0}" />
-            </td>
+            ${['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(day => `
+              <td><input type="number" id="${day}-${key}" value="${week[day] || 0}" /></td>
+            `).join('')}
+            <td>${totalSteps}</td>
             <td>
               <input type="checkbox" id="enabled-${key}" ${data.enabled === false ? '' : 'checked'} />
             </td>
@@ -97,9 +114,12 @@
     }
 
     function save(key) {
-      const steps = parseInt(document.getElementById(`steps-${key}`).value);
+      const week = {};
+      ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(day => {
+        week[day] = parseInt(document.getElementById(`${day}-${key}`).value) || 0;
+      });
       const enabled = document.getElementById(`enabled-${key}`).checked;
-      db.ref("walkathon/" + key).update({ steps, enabled })
+      db.ref("walkathon/" + key).update({ week, enabled })
         .then(() => {
           alert("Saved successfully!");
           loadLeaderboard();
