@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Walkathon Step Entry</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    input, button { padding: 10px; margin: 10px; width: 80%; max-width: 300px; }
+  </style>
+</head>
+<body>
+  <h2>Walkathon Step Entry</h2>
+  <div id="userInfo"></div>
+  <input type="number" id="stepInput" placeholder="Enter total steps" required>
+  <button onclick="submitSteps()">Submit Steps</button>
+  <p id="status"></p>
+
+  <script type="module">
+    // Import Firebase SDK modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js";
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCYmmn99Y8l3u-h0za23IsN0YtWjjk6q3I",
+      authDomain: "icxt-walkathon.firebaseapp.com",
+      projectId: "icxt-walkathon",
+      storageBucket: "icxt-walkathon.firebasestorage.app",
+      messagingSenderId: "447166524558",
+      appId: "1:447166524558:web:ec9dd18bef034ff7af2ddf",
+      measurementId: "G-PYC06ELE9G"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+    const db = getDatabase(app);
+
+    let userName = "";
+
+    // Auth flow
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        userName = user.displayName;
+        document.getElementById("userInfo").innerHTML = `Hi, ${userName}`;
+      } else {
+        signInWithPopup(auth, provider).catch(err => {
+          alert("Sign-in error: " + err.message);
+        });
+      }
+    });
+
+    // Submit steps function
+    window.submitSteps = function () {
+      const steps = document.getElementById("stepInput").value;
+      if (!steps) return;
+
+      set(ref(db, 'walkathon/' + userName), {
+        name: userName,
+        steps: parseInt(steps),
+        timestamp: new Date().toISOString()
+      }).then(() => {
+        document.getElementById("status").innerText = "Steps submitted successfully!";
+      }).catch(err => {
+        document.getElementById("status").innerText = "Error submitting steps.";
+      });
+    }
+  </script>
+</body>
+</html>
