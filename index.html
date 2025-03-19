@@ -1,70 +1,98 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Walkathon Step Entry</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Walkathon Submission</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; }
-    input, button { padding: 10px; margin: 10px; width: 80%; max-width: 300px; }
+    body { font-family: Arial; padding: 20px; }
+    input[type=number] { width: 80px; padding: 5px; }
+    button { padding: 10px; }
+    table { border-collapse: collapse; }
+    th, td { padding: 8px; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
-  <h2>Walkathon Step Entry</h2>
-  <div id="userInfo"></div>
-  <input type="number" id="stepInput" placeholder="Enter total steps" required>
-  <button onclick="submitSteps()">Submit Steps</button>
-  <p id="status"></p>
+  <h2>Walkathon – Enter Your Steps</h2>
 
-  <script type="module">
-    // Import Firebase SDK modules
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js";
+  <div id="auth">
+    <button onclick="signIn()">Sign in with Google</button>
+    <p id="user"></p>
+  </div>
 
-    // Firebase config
+  <div id="form" style="display:none;">
+    <h3 id="greeting"></h3>
+    <form id="stepForm" onsubmit="submitSteps(event)">
+      <table>
+        <tr>
+          <th>Day</th>
+          <th>Steps</th>
+        </tr>
+        <tr><td>Monday</td>    <td><input type="number" id="mon" /></td></tr>
+        <tr><td>Tuesday</td>   <td><input type="number" id="tue" /></td></tr>
+        <tr><td>Wednesday</td> <td><input type="number" id="wed" /></td></tr>
+        <tr><td>Thursday</td>  <td><input type="number" id="thu" /></td></tr>
+        <tr><td>Friday</td>    <td><input type="number" id="fri" /></td></tr>
+        <tr><td>Saturday</td>  <td><input type="number" id="sat" /></td></tr>
+        <tr><td>Sunday</td>    <td><input type="number" id="sun" /></td></tr>
+      </table>
+      <br>
+      <button type="submit">Submit Steps</button>
+    </form>
+  </div>
+
+  <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyCYmmn99Y8l3u-h0za23IsN0YtWjjk6q3I",
+      apiKey: "AIzaSyCmvm99Y813u-h0za23IsNQYtWjjk6q3iI",
       authDomain: "icxt-walkathon.firebaseapp.com",
-      projectId: "icxt-walkathon",
-      storageBucket: "icxt-walkathon.firebasestorage.app",
-      messagingSenderId: "447166524558",
-      appId: "1:447166524558:web:ec9dd18bef034ff7af2ddf",
-      measurementId: "G-PYC06ELE9G"
+      databaseURL: "https://icxt-walkathon-default-rtdb.firebaseio.com",
+      projectId: "icxt-walkathon"
     };
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
-    const db = getDatabase(app);
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+    let currentUser = null;
 
-    let userName = "";
+    function signIn() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).then(result => {
+        currentUser = result.user;
+        document.getElementById("user").textContent = `Signed in as ${currentUser.email}`;
+        document.getElementById("auth").style.display = "none";
+        document.getElementById("form").style.display = "block";
+        document.getElementById("greeting").innerText = `Hello, ${currentUser.displayName}!`;
+        loadExistingData();
+      });
+    }
 
-    // Auth flow
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        userName = user.displayName;
-        document.getElementById("userInfo").innerHTML = `Hi, ${userName}`;
-      } else {
-        signInWithPopup(auth, provider).catch(err => {
-          alert("Sign-in error: " + err.message);
-        });
+    function loadExistingData() {
+      const ref = db.ref("walkathon/" + currentUser.displayName);
+      ref.once("value", snapshot => {
+        const data = snapshot.val();
+        if (data && data.week) {
+          for (let day of ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]) {
+            document.getElementById(day).value = data.week[day] || 0;
+          }
+        }
+      });
+    }
+
+    function submitSteps(e) {
+      e.preventDefault();
+      const steps = {};
+      for (let day of ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]) {
+        steps[day] = parseInt(document.getElementById(day).value) || 0;
       }
-    });
-
-    // Submit steps function
-    window.submitSteps = function () {
-      const steps = document.getElementById("stepInput").value;
-      if (!steps) return;
-
-      set(ref(db, 'walkathon/' + userName), {
-        name: userName,
-        steps: parseInt(steps),
+      const ref = db.ref("walkathon/" + currentUser.displayName);
+      ref.set({
+        name: currentUser.displayName,
+        week: steps,
+        enabled: true,
         timestamp: new Date().toISOString()
       }).then(() => {
-        document.getElementById("status").innerText = "Steps submitted successfully!";
-      }).catch(err => {
-        document.getElementById("status").innerText = "Error submitting steps.";
+        alert("Steps submitted successfully!");
       });
     }
   </script>
