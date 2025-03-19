@@ -1,26 +1,114 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Walkathon Admin Panel</title>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+  <script type="module">
+    // Firebase Modular SDK
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { getDatabase, ref, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCmvm99Y813u-h0za23IsNQYtWjjk6q3iI",
+      authDomain: "icxt-walkathon.firebaseapp.com",
+      databaseURL: "https://icxt-walkathon-default-rtdb.firebaseio.com",
+      projectId: "icxt-walkathon"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    const loginBtn = document.getElementById('login-button');
+    const logoutBtn = document.getElementById('logout-button');
+    const adminPanel = document.getElementById('admin-panel');
+    const loginContainer = document.getElementById('login-container');
+    const tableBody = document.getElementById('participants-table');
+
+    loginBtn.onclick = async () => {
+      try {
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+      } catch (error) {
+        alert("Sign-in error: " + error.message);
+      }
+    };
+
+    logoutBtn.onclick = () => {
+      signOut(auth);
+    };
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        loginContainer.style.display = "none";
+        adminPanel.style.display = "block";
+        loadData();
+      } else {
+        loginContainer.style.display = "block";
+        adminPanel.style.display = "none";
+      }
+    });
+
+    function loadData() {
+      const walkathonRef = ref(db, 'walkathon');
+      onValue(walkathonRef, (snapshot) => {
+        const data = snapshot.val();
+        tableBody.innerHTML = ''; // Clear existing
+
+        if (!data) {
+          tableBody.innerHTML = '<tr><td colspan="4">No data yet</td></tr>';
+          return;
+        }
+
+        Object.entries(data).forEach(([key, entry]) => {
+          const row = document.createElement('tr');
+
+          row.innerHTML = `
+            <td>${entry.name || key}</td>
+            <td><input type="number" id="steps-${key}" value="${entry.steps || 0}" /></td>
+            <td><input type="checkbox" id="enable-${key}" ${entry.enabled === false ? '' : 'checked'} /></td>
+            <td>
+              <button onclick="saveUser('${key}')">Save</button>
+              <button onclick="deleteUser('${key}')">Delete</button>
+            </td>
+          `;
+
+          tableBody.appendChild(row);
+        });
+      });
+    }
+
+    window.saveUser = (key) => {
+      const steps = parseInt(document.getElementById(`steps-${key}`).value);
+      const enabled = document.getElementById(`enable-${key}`).checked;
+      const userRef = ref(db, 'walkathon/' + key);
+      update(userRef, { steps, enabled });
+      alert("Updated successfully!");
+    };
+
+    window.deleteUser = (key) => {
+      if (confirm(`Are you sure you want to delete ${key}?`)) {
+        remove(ref(db, 'walkathon/' + key));
+      }
+    };
+  </script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h1 { margin-bottom: 10px; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-    th { background-color: #f2f2f2; }
-    input[type="number"] { width: 80px; }
-    button { padding: 5px 10px; margin: 2px; }
+    th { background-color: #f9f9f9; }
+    button { margin: 2px; }
   </style>
 </head>
 <body>
   <h1>Walkathon Admin Panel</h1>
+
   <div id="login-container">
     <button id="login-button">Login with Google</button>
   </div>
+
   <div id="admin-panel" style="display:none;">
     <button id="logout-button">Logout</button>
     <table>
@@ -32,146 +120,8 @@
           <th>Actions</th>
         </tr>
       </thead>
-      <tbody id="participants-table">
-        <!-- Participant rows will be inserted here -->
-      </tbody>
+      <tbody id="participants-table"></tbody>
     </table>
   </div>
-
-  <script>
-    // Your Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyCYmmn99Y8l3u-h0za23IsN0YtWjjk6q3I",
-      authDomain: "icxt-walkathon.firebaseapp.com",
-      databaseURL: "https://icxt-walkathon-default-rtdb.firebaseio.com",
-      projectId: "icxt-walkathon"
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
-
-    // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const database = firebase.database();
-
-    const loginButton = document.getElementById('login-button');
-    const logoutButton = document.getElementById('logout-button');
-    const loginContainer = document.getElementById('login-container');
-    const adminPanel = document.getElementById('admin-panel');
-    const participantsTable = document.getElementById('participants-table');
-
-    // Google Auth Provider
-    const provider = new firebase.auth.GoogleAuthProvider();
-
-    // Login event
-    loginButton.addEventListener('click', () => {
-      auth.signInWithPopup(provider).then(result => {
-        // Check if the user is an admin
-        const user = result.user;
-        const userEmail = user.email;
-        // Replace with your admin email
-        const adminEmail = "nitin1518@gmail.com";
-        if (userEmail === adminEmail) {
-          loginContainer.style.display = 'none';
-          adminPanel.style.display = 'block';
-          fetchParticipants();
-        } else {
-          alert("Access denied: You are not an admin.");
-          auth.signOut();
-        }
-      }).catch(error => {
-        console.error("Sign-in error:", error);
-      });
-    });
-
-    // Logout event
-    logoutButton.addEventListener('click', () => {
-      auth.signOut().then(() => {
-        adminPanel.style.display = 'none';
-        loginContainer.style.display = 'block';
-      }).catch(error => {
-        console.error("Sign-out error:", error);
-      });
-    });
-
-    // Fetch participants from Firebase
-    function fetchParticipants() {
-      database.ref('walkathon').on('value', snapshot => {
-        const data = snapshot.val();
-        participantsTable.innerHTML = ''; // Clear the table
-        for (const key in data) {
-          if (data.hasOwnProperty(key)) {
-            const participant = data[key];
-            addParticipantRow(key, participant);
-          }
-        }
-      });
-    }
-
-    // Add a row to the participants table
-    function addParticipantRow(key, participant) {
-      const row = document.createElement('tr');
-      row.setAttribute('data-key', key);
-
-      // Name
-      const nameCell = document.createElement('td');
-      nameCell.textContent = participant.name || 'N/A';
-      row.appendChild(nameCell);
-
-      // Steps
-      const stepsCell = document.createElement('td');
-      const stepsInput = document.createElement('input');
-      stepsInput.type = 'number';
-      stepsInput.value = participant.steps || 0;
-      stepsCell.appendChild(stepsInput);
-      row.appendChild(stepsCell);
-
-      // Enabled
-      const enabledCell = document.createElement('td');
-      const enabledCheckbox = document.createElement('input');
-      enabledCheckbox.type = 'checkbox';
-      enabledCheckbox.checked = participant.enabled !== false; // Default to true if undefined
-      enabledCell.appendChild(enabledCheckbox);
-      row.appendChild(enabledCell);
-
-      // Actions
-      const actionsCell = document.createElement('td');
-      const saveButton = document.createElement('button');
-      saveButton.textContent = 'Save';
-      saveButton.addEventListener('click', () => saveParticipant(key, stepsInput.value, enabledCheckbox.checked));
-      const deleteButton = document.createElement('button');
-      deleteButton.textContent = 'Delete';
-      deleteButton.addEventListener('click', () => deleteParticipant(key));
-      actionsCell.appendChild(saveButton);
-      actionsCell.appendChild(deleteButton);
-      row.appendChild(actionsCell);
-
-      participantsTable.appendChild(row);
-    }
-
-    // Save participant data
-    function saveParticipant(key, steps, enabled) {
-      database.ref('walkathon/' + key).update({
-        steps: parseInt(steps, 10),
-        enabled: enabled
-      }).then(() => {
-        alert('Participant data updated successfully.');
-      }).catch(error => {
-        console.error('Error updating data:', error);
-      });
-    }
-
-    // Delete participant
-    function deleteParticipant(key) {
-      if (confirm('Are you sure you want to delete this participant?')) {
-        database.ref('walkathon/' + key).remove().then(() => {
-          alert('Participant deleted successfully.');
-        }).catch(error => {
-          console.error('Error deleting participant:', error);
-        });
-      }
-    }
-  </script>
 </body>
 </html>
