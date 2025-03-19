@@ -5,9 +5,18 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f2f2f2; }
+    input[type="number"] { width: 80px; }
+    button { margin: 2px; }
+  </style>
 </head>
 <body>
   <h2>Walkathon Admin Dashboard</h2>
+
   <div id="auth">
     <button onclick="signIn()">Sign in with Google</button>
     <p id="user"></p>
@@ -15,8 +24,13 @@
 
   <div id="admin" style="display:none;">
     <h3>All Participants</h3>
-    <table border="1" id="leaderboard">
-      <tr><th>Name</th><th>Steps</th><th>Status</th><th>Actions</th></tr>
+    <table id="leaderboard">
+      <tr>
+        <th>Name</th>
+        <th>Steps</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
     </table>
   </div>
 
@@ -25,9 +39,9 @@
       apiKey: "AIzaSyCmvm99Y813u-h0za23IsNQYtWjjk6q3iI",
       authDomain: "icxt-walkathon.firebaseapp.com",
       databaseURL: "https://icxt-walkathon-default-rtdb.firebaseio.com",
-      projectId: "icxt-walkathon",
+      projectId: "icxt-walkathon"
     };
-    
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const auth = firebase.auth();
@@ -49,31 +63,47 @@
     function loadLeaderboard() {
       db.ref("walkathon").once("value", snapshot => {
         const table = document.getElementById("leaderboard");
-        table.innerHTML = '<tr><th>Name</th><th>Steps</th><th>Status</th><th>Actions</th></tr>';
+        table.innerHTML = `
+          <tr>
+            <th>Name</th>
+            <th>Steps</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        `;
 
         snapshot.forEach(child => {
           const key = child.key;
           const data = child.val();
           const row = document.createElement("tr");
+
           row.innerHTML = `
             <td>${data.name || key}</td>
-            <td>${data.steps || 0}</td>
-            <td>${data.enabled === false ? '❌ Disabled' : '✅ Enabled'}</td>
             <td>
-              <button onclick="toggle('${key}', ${data.enabled !== false})">
-                ${data.enabled === false ? 'Enable' : 'Disable'}
-              </button>
-              <button onclick="remove('${key}')">Delete</button>
+              <input type="number" id="steps-${key}" value="${data.steps || 0}" />
+            </td>
+            <td>
+              <input type="checkbox" id="enabled-${key}" ${data.enabled === false ? '' : 'checked'} />
+            </td>
+            <td>
+              <button onclick="save('${key}')">💾 Save</button>
+              <button onclick="remove('${key}')">🗑️ Delete</button>
             </td>
           `;
+
           table.appendChild(row);
         });
       });
     }
 
-    function toggle(key, currentState) {
-      db.ref("walkathon/" + key).update({ enabled: !currentState })
-        .then(() => loadLeaderboard());
+    function save(key) {
+      const steps = parseInt(document.getElementById(`steps-${key}`).value);
+      const enabled = document.getElementById(`enabled-${key}`).checked;
+      db.ref("walkathon/" + key).update({ steps, enabled })
+        .then(() => {
+          alert("Saved successfully!");
+          loadLeaderboard();
+        });
     }
 
     function remove(key) {
